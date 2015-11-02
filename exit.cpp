@@ -9,9 +9,10 @@
 void Exit::update() {
     //See if the player has finished the level
     if(isCollidingWith(level->getPlayer())) {
-        qDebug() << "Level finished!";
+        level->setFinished(true);
     }
 
+	//Update the exit's label according to the player's position (side-scrolling)
     buddy->move(getX() - level->getXOffs(), getY() - level->getYOffs());
 }
 

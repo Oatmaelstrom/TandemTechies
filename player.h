@@ -10,20 +10,26 @@
 
 #include "entity.h"
 #include "block.h"
+#include <QPixmap>
 
 class Player : public Entity {
-    bool jumping, falling; //Whether or not the player is jumping or falling
-    bool left, right;      //Whether or not the left or right key is pressed
-    int velocity;          //The player's velocity
+    bool jumpKeyPressed;		  //Whether or not the up/w key is pressed
+	bool jumping;				  //Whether or not the player is jumping or falling
+    bool left, right;			  //Whether or not the left or right key is pressed
+    int hSpeed;					  //The player's velocity
+    int vSpeed;					  //The player's vertical speed
+    int jumpHeight, maxVSpeed;    //Maximum jump height and vertical speed
+    int jumpDistance;			  //The current distance the player has jumped
+	int jumpSpeed;				  //The speed of a jump
+    int dir;					  //The direction the player is currently facing
 
-
-    //these have the possiblity of adding points
-//    QList<Block *> blockInventory;
+	QPixmap pLeft;
+	QPixmap pRight;
 
 public:
     //Creates the player using the default entity constructor
     //<initLevel> The level that the entity is inside
-    Player(Level* initLevel) : Entity(initLevel) { }
+    Player(Level* initLevel);
 
     //Creates the player at a certain position
     //<initLevel> The level that the entity is inside
@@ -40,9 +46,18 @@ public:
     //save the status of the player entity
     void savePosition();
 
+    //Clears the input flags of the user, such as
+    //left, right, and jumpKeyPressed
+    void clearFlags();
+
     //Setters
     void setRight(bool newRight) { right = newRight; }
     void setLeft(bool newLeft) { left = newLeft; }
+    void setJumping(bool newJumping) { jumpKeyPressed = newJumping; }
+	void setDir(int newDir) { dir = newDir; }
+
+	//Getters
+	int getDir() { return dir; }
 };
 
 #endif // PLAYER_H

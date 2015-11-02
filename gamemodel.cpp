@@ -11,12 +11,35 @@
 GameModel::GameModel()
 {
     levelDataFile = ":/levels.dat";
-    currentLevel = 1;
+    currentLevel = 0;
+    updateGUI = false;
 }
 
 void GameModel::update()
 {
+	//Update the level that the user is currently playing
     levels[currentLevel]->update();
+
+	//Test to see if the user has gotten to the exit
+    if(levels[currentLevel]->isFinished()) {
+        levels[currentLevel]->setFinished(false);
+
+		//Go the the next level and make sure the currentLevel is not the last level
+        currentLevel++;		
+        if(currentLevel >= levels.size()) {
+            currentLevel = 0;
+            resetGame();
+        }
+        updateGUI = true;
+    }
+}
+
+void GameModel::resetGame() {
+    for(int i = 0; i < levels.size(); i++) {
+        delete levels[i];
+    }
+    levels.clear();
+    loadLevels();
 }
 
 bool GameModel::loadLevels() {
@@ -26,7 +49,7 @@ bool GameModel::loadLevels() {
     }
 
     QList<QString> levelData;   //The strings of data for the level
-    int numberBlocks;           //Number of moveable blocks
+    int numberBlocks = 0;       //Number of moveable blocks
     QString levelName;          //The name of the level
 
     QTextStream in(&loadFile);  //To read the text in the file
@@ -52,24 +75,46 @@ bool GameModel::loadLevels() {
     return true;
 }
 
+void GameModel::resetCurrentLevel() {
+    Level* level = getCurrentLevel();
+    int numBlocks = level->getStartNumBlocks();
+    QString name = level->getName();
+    QList<QString> data = level->getData();
+    Level* newLevel = new Level(data);
+    newLevel->setName(name);
+    newLevel->setNumBlocks(numBlocks);
+    levels.removeOne(level);
+    delete level;
+    levels.insert(currentLevel, newLevel);
+}
+
 GameModel::~GameModel() {
     for(int i = 0; i < levels.size(); i++) {
         delete levels[i];
     }
 }
 
+PlaceableBlock* GameModel::placeBlock() {
+    return getCurrentLevel()->placeBlock();
+}
+
 void GameModel::playerInputP(int p){//Press Event Handler
     switch (p){
+    case Qt::Key_W:
     case Qt::Key_Up:
+        getCurrentLevel()->getPlayer()->setJumping(true);
         break;
+    case Qt::Key_A:
     case Qt::Key_Left:
         getCurrentLevel()->getPlayer()->setLeft(true);
+		getCurrentLevel()->getPlayer()->setDir(-1);
         break;
+    case Qt::Key_D:
     case Qt::Key_Right:
         getCurrentLevel()->getPlayer()->setRight(true);
+		getCurrentLevel()->getPlayer()->setDir(1);
         break;
     default:
-
         break;
     }
 }
@@ -77,17 +122,19 @@ void GameModel::playerInputP(int p){//Press Event Handler
 
 void GameModel::playerInputR(int r){//Release Event Handler
     switch (r){
+    case Qt::Key_W:
     case Qt::Key_Up:
-        qDebug() << "U key released";
+        getCurrentLevel()->getPlayer()->setJumping(false);
         break;
+    case Qt::Key_A:
     case Qt::Key_Left:
         getCurrentLevel()->getPlayer()->setLeft(false);
         break;
+    case Qt::Key_D:
     case Qt::Key_Right:
         getCurrentLevel()->getPlayer()->setRight(false);
         break;
     default:
-
         break;
     }
 }
