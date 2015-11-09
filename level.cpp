@@ -7,15 +7,21 @@
 #include "collectible.h"
 #include "level.h"
 #include "gamewindow.h"
+#include "network.h"
+#include "scoremanager.h"
+#include "enemy.h"
 #include <QDebug>
 
-Level::Level(QList<QString> data)
-{
-    name = "";
-    load(data);
+Level::Level(QList<QString> &initData, GameModel *initModel)
+    : data(initData), model(initModel) {
+    data = initData;
     finished = false;
     xOffs = 0;
     yOffs = 0;
+    player = nullptr;
+    remotePlayer = nullptr;
+    exit = nullptr;
+    scoreBeforeLevel = 0;
 }
 
 Level::~Level() {
@@ -27,7 +33,6 @@ Level::~Level() {
     for(int i = 0; i < entities.size(); i++) {
         delete entities[i];
     }
-    delete player;
     delete exit;
 }
 
@@ -35,7 +40,7 @@ void Level::update() {
     //Update all objects in the game
     for(int y = 0; y < blocks.size(); y++) {
         for(int x = 0; x < blocks[y].size(); x++) {
-            if(blocks[y][x] != nullptr) {
+            if(blocks[y][x]) {
                 blocks[y][x]->update();
             }
         }
@@ -73,34 +78,47 @@ void Level::removeBlock(int x, int y) {
     blocks[y][x] = nullptr;
 }
 
-void Level::load(QList<QString> initData) {
-    data = QList<QString>(initData);
+void Level::load() {
+    scoreBeforeLevel = ScoreManager::instance().getCurScore();
+    name = data[0].mid(6);
+    numBlocks = data[1].mid(7).toInt();
+    pointPlus = data[2].mid(7).toInt();
 
-    for(int y = 0; y < initData.size(); y++) {
+    for(int y = 3; y < data.size(); y++) {
         QList<Block*> list;							//The blocks in the current row
-        for(int x = 0; x < initData[y].length(); x++) {
-            QChar type = initData[y].at(x);
+        for(int x = 0; x < data[y].length(); x++) {
+            QChar type = data[y][x];
             if(type == 'b') {						//If the character represents a block
-                list << new Block(this, x * Entity::SIZE, y * Entity::SIZE);
+                list << new Block(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
             } else if(type == 'p') {				//If the character represents the player
                 list << nullptr;
-                player = new Player(this, x * Entity::SIZE, y * Entity::SIZE);
+                player = new Player(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
             } else if(type == 'x') {
                 list << nullptr;					//If the character is an exit
-                exit = new Exit(this, x * Entity::SIZE, y * Entity::SIZE);
+                exit = new Exit(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
             } else if(type == 'c') {
                 list << nullptr;
-                Collectible* c = new Collectible(this, x * Entity::SIZE, y * Entity::SIZE);
+                Collectible* c = new Collectible(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
                 entities << c;
             } else if(type == 'm') {
-                PlaceableBlock* b = new PlaceableBlock(this, x * Entity::SIZE, y * Entity::SIZE);
+                PlaceableBlock* b = new PlaceableBlock(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
                 list << b;
+            } else if(type == 'e') {
+                list << nullptr;
+                Enemy* e = new Enemy(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
+                entities << e;
             } else if(type == ' ') {				//If it is an empty space
                 list << nullptr;
             }
         }
         blocks << list;								//Store the current row of blocks into the block list
     }
+}
+
+PlaceableBlock* Level::placeBlock(int x, int y) {
+    PlaceableBlock* block = new PlaceableBlock(this, x * Entity::SIZE, y * Entity::SIZE);
+    blocks[y][x] = block;
+    return block;
 }
 
 PlaceableBlock* Level::placeBlock(){
@@ -135,7 +153,9 @@ PlaceableBlock* Level::placeBlock(){
                 return nullptr;
             }
             if(testCollision(b->getX(), b->getY() + Entity::SIZE)) {
+                Network::instance().send("Block " + QString::number(x) + " " + QString::number(y));
                 blocks[y][x] = b;
+                b->setCreating(true);
                 numBlocks--;
                 return b;
             } else {
@@ -145,7 +165,8 @@ PlaceableBlock* Level::placeBlock(){
         }
     } else {
         PlaceableBlock* test = dynamic_cast<PlaceableBlock*>(blocks[y][x]);
-        if(test != nullptr && !test->isDeleting()) {
+        if(test != nullptr && !test->isCreating() && !test->isDeleting()) {
+            Network::instance().send("Remove " + QString::number(x) + " " + QString::number(y));
             test->setDeleting(true);
             numBlocks++;
         }

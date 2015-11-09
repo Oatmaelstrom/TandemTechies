@@ -22,15 +22,13 @@ class Player : public Entity {
     int jumpDistance;			  //The current distance the player has jumped
 	int jumpSpeed;				  //The speed of a jump
     int dir;					  //The direction the player is currently facing
+    int lives;
+    bool dead;
 
-	QPixmap pLeft;
-	QPixmap pRight;
+    QPixmap pLeft;                //The image for facing left
+    QPixmap pRight;               //The image for facing right
 
 public:
-    //Creates the player using the default entity constructor
-    //<initLevel> The level that the entity is inside
-    Player(Level* initLevel);
-
     //Creates the player at a certain position
     //<initLevel> The level that the entity is inside
     //<initX> The starting x position of the exit
@@ -55,9 +53,13 @@ public:
     void setLeft(bool newLeft) { left = newLeft; }
     void setJumping(bool newJumping) { jumpKeyPressed = newJumping; }
 	void setDir(int newDir) { dir = newDir; }
+    void setDead(bool isDead) { dead = isDead; }
+    void setLives(int newLives) { lives = newLives; }
 
 	//Getters
 	int getDir() { return dir; }
+    bool isDead() { return dead; }
+    int getLives() { return lives; }
 };
 
 #endif // PLAYER_H

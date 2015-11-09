@@ -17,10 +17,6 @@ private:
     int scorePlus;
 
 public:
-    //Creates the block using the default entity constructor
-    //<initLevel> The level that the entity is inside
-    Block(Level* initLevel) : Entity(initLevel) { }
-
     //Creates the block at a certain position
     //<initLevel> The level that the entity is inside
     //<initX> The starting x position of the exit
@@ -37,9 +33,6 @@ public:
     //Saves the block's position to the save file
     void savePosition();
 
-    //returns an amount to be added
-    int toBeAdded();
-
     //getters
     int getScorePlus() { return scorePlus; }
 };
@@ -49,17 +42,14 @@ class PlaceableBlock : public Block
 private:
     int curSize;
     bool deleting;
+    bool creating;
 
 public:
-    //Creates the placeable block using the default entity constructor
-    //<initLevel> The level that the entity is inside
-    PlaceableBlock(Level* initLevel) : Block(initLevel), curSize(0), deleting(false) { }
-
     //Creates the placeable block at a certain position
     //<initLevel> The level that the entity is inside
     //<initX> The starting x position of the exit
     //<initY> The starting y position of the exit
-    PlaceableBlock(Level* initLevel, int initX, int initY) : Block(initLevel, initX, initY), curSize(0), deleting(false) { }
+    PlaceableBlock(Level* initLevel, int initX, int initY) : Block(initLevel, initX, initY), curSize(0), deleting(false), creating(true) { }
 
     //Updates the block. The animation is updated also
     void update();
@@ -67,9 +57,15 @@ public:
     //Saves the block's position to the save file
     void savePosition();
 
+    //When the user presses space to pick up a block, this method is called, which
+    //makes the block shrink and delete
+    void setCreating(bool isCreating) { creating = isCreating; }
     void setDeleting(bool isDeleting) { deleting = isDeleting; }
 
+    //Test if the block is deleting or not
     bool isDeleting() { return deleting; }
+
+    bool isCreating() { return creating; }
 };
 
 #endif // BLOCK_H

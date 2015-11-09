@@ -5,30 +5,19 @@
 //**********************************************************
 
 #include "level.h"
-#include "player.h"
+#include <QTcpSocket>
 
-Player::Player(Level *initLevel) : Entity(initLevel) {
-    hSpeed = 12;
-    vSpeed = 0;
-    right = left = jumping = jumpKeyPressed = false;
-    jumpDistance = 0;
-    jumpHeight = 192;
-    maxVSpeed = 32;
-	jumpSpeed = -16;
-	dir = 1;
-	pLeft.load(":/images/p_left.png");
-	pRight.load(":/images/p_right.png");
-}
 
 Player::Player(Level *initLevel, int initX, int initY)
     : Entity(initLevel, initX, initY) {
     hSpeed = 8;
     vSpeed = 0;
-    right = left = jumping = jumpKeyPressed = false;
+    right = left = jumping = jumpKeyPressed = dead = false;
     jumpDistance = 0;
     jumpHeight = 192;
     maxVSpeed = 32;
 	dir = 1;
+    lives = 8;
     jumpSpeed = -12;
 	pLeft.load(":/images/p_left.png");
 	pRight.load(":/images/p_right.png");

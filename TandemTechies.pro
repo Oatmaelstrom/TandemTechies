@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -22,7 +22,10 @@ SOURCES += main.cpp\
     block.cpp \
     menu.cpp \
     exit.cpp \
-    collectible.cpp
+    collectible.cpp \
+    enemy.cpp \
+    remoteplayer.cpp \
+    network.cpp
 
 HEADERS  += gamewindow.h\
         entity.h\
@@ -33,7 +36,10 @@ HEADERS  += gamewindow.h\
     block.h \
     menu.h \
     exit.h \
-    collectible.h
+    collectible.h \
+    enemy.h \
+    remoteplayer.h \
+    network.h
 
 FORMS    += gamewindow.ui \
     menu.ui
@@ -42,3 +48,5 @@ QMAKE_CXXFLAGS += -std=c++11
 
 RESOURCES += \
     resources.qrc
+
+DISTFILES +=
