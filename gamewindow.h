@@ -10,7 +10,9 @@
 #include <QTimer>
 #include <QPixmap>
 #include <QWidget>
+#include <QMutex> //For loading level
 #include <QTcpSocket>
+
 #include "gamemodel.h"
 #include "remoteplayer.h"
 #include "entity.h"
@@ -52,6 +54,8 @@ public:
 	//evel 1 to level 2
     void updateGUI();
 
+    void shoot();
+
 	//Performs unit tests to make sure the game is working,
 	//and exits the program if any of them fail.
     void unitTests();
@@ -59,6 +63,9 @@ public:
     //Adds the hearts to the status bar label for how
     //many lives the player has left
     void showLives();
+
+    //Save the state of the game for loading next time
+    void save();
 
     static int WIDTH;       //The width of the window
     static int HEIGHT;      //The height of the window
@@ -74,6 +81,7 @@ private slots:
     void load();
     void exit();
 
+    void closeEvent(QCloseEvent *e);
     void keyPressEvent(QKeyEvent *k);
     void keyReleaseEvent(QKeyEvent *k);
     void focusOutEvent(QFocusEvent*);
