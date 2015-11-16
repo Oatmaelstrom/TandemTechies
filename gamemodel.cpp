@@ -17,11 +17,12 @@ GameModel::GameModel()
     currentLevel = 0;
     updateGUI = false;
     lives = 8;
+    cheating = false;
 }
 
 void GameModel::update()
 {
-	//Update the level that the user is currently playing
+    //Update the level that the user is currently playing
     getCurrentLevel()->update();
 
     //If the player is dead, then reset the level and decrement the lives
@@ -29,14 +30,19 @@ void GameModel::update()
         Sound::instance().gameOver();
         getCurrentLevel()->getPlayer()->setDead(false);
         lives--;
+        if(lives <= 0) {
+            emit gameFinished(false, false);
+        }
         Network::instance().send("Reset");
         resetCurrentLevel();
         updateGUI = true;
     }
 
-	//Test to see if the user has gotten to the exit
+    //Test to see if the user has gotten to the exit
     if(getCurrentLevel()->isFinished()) {
-        if(Network::instance().isOpen()) { Network::instance().write("Finished\n"); }
+        if(currentLevel + 1 < levels.size()) {
+            Network::instance().send("Finished");
+        }
 
         levelFinished();
     }
@@ -49,9 +55,13 @@ void GameModel::update()
     back->move(-(pX / width * 250) + getCurrentLevel()->getAmplitudeW(), -(pY / height) * 25 + getCurrentLevel()->getAmplitudeH());
 }
 
+Level* GameModel::getCurrentLevel() {
+    if(currentLevel >= levels.size()) return nullptr;
+    else return levels[currentLevel];
+}
+
 void GameModel::setCurrentLevel(int newLevel) {
     currentLevel = newLevel;
-    levels[currentLevel]->load();
 }
 
 void GameModel::levelFinished() {
@@ -60,10 +70,11 @@ void GameModel::levelFinished() {
     Sound::instance().endLevel();
     currentLevel++;
     if(currentLevel >= levels.size()) {
-        currentLevel = 0;
+        emit gameFinished(true, false);
         resetGame();
     }
     getCurrentLevel()->load();
+    cheating = false;
     updateGUI = true;
 }
 
@@ -71,8 +82,12 @@ void GameModel::resetGame() {
     for(int i = 0; i < levels.size(); i++) {
         delete levels[i];
     }
+    cheating = false;
+    currentLevel = 0;
     levels.clear();
     loadLevels();
+    lives = 8;
+    ScoreManager::instance().setScore(0);
 }
 
 bool GameModel::loadLevels() {
@@ -113,6 +128,7 @@ void GameModel::save() {
     out << "Lives " << lives << "\n";
 
     getCurrentLevel()->save(out);
+    saveFile.close();
     qDebug() << "Game saved.";
 }
 
@@ -133,8 +149,10 @@ bool GameModel::load() {
             if(line.startsWith("Level")) { //Level number
                 QStringList list = line.split(" ");
                 setCurrentLevel(list[1].toInt());
+                getCurrentLevel()->load();
+                cheating = false;
                 getCurrentLevel()->removeAllEntities();
-                getCurrentLevel()->removePlaceableBlocks();
+                getCurrentLevel()->removePlaceableBlocks();                
             } else if(line.startsWith("Score")) {
                 QStringList list = line.split(" ");
                 ScoreManager::instance().setScore(list[1].toInt());
@@ -145,23 +163,42 @@ bool GameModel::load() {
             } else if(line.startsWith("Lives")) {
                 QStringList list = line.split(" ");
                 lives = list[1].toInt();
+            } else if(line.startsWith("Bullet")) {
+                QStringList list = line.split(" ");
+                bool cheat = list.at(1) == "c";
+                int x = list.at(2).toInt();
+                int y = list.at(3).toInt();
+                int dir = list.at(4).toInt();
+                Bullet* b = new Bullet(getCurrentLevel(), x, y);
+                b->setDir(dir);
+                b->setInvincible(cheat);
+                getCurrentLevel()->getEntities() << b;
             } else if(line.startsWith("Player")) { //Player position
                 QStringList list = line.split(" ");
                 int x = list[1].toInt();
                 int y = list[2].toInt();
                 int dir = list[3].toInt();
-                Player* p = getCurrentLevel()->getPlayer();
+                Player* p = new Player(getCurrentLevel(), x, y);
                 p->setX(x);
                 p->setY(y);
                 p->setWidth(Entity::SIZE);
                 p->setHeight(Entity::SIZE);
                 p->setDir(dir);
+                getCurrentLevel()->setPlayer(p);
             } else if(line.startsWith("Enemy")) { //Enemy position
                 QStringList list = line.split(" ");
                 int x = list[1].toInt();
                 int y = list[2].toInt();
                 int dir = list[3].toInt();
                 Enemy* e = new Enemy(getCurrentLevel(), x, y);
+                e->setDir(dir);
+                getCurrentLevel()->getEntities() << e;
+            } else if(line.startsWith("FlyingEnemy")) { //Enemy position
+                QStringList list = line.split(" ");
+                int x = list[1].toInt();
+                int y = list[2].toInt();
+                int dir = list[3].toInt();
+                FlyingEnemy* e = new FlyingEnemy(getCurrentLevel(), x, y);
                 e->setDir(dir);
                 getCurrentLevel()->getEntities() << e;
             } else if(line.startsWith("Collect")) { //Collectibles
@@ -177,6 +214,7 @@ bool GameModel::load() {
             }
         }
     }
+    loadFile.close();
     updateGUI = true;
     return true;
 }
@@ -184,13 +222,14 @@ bool GameModel::load() {
 void GameModel::resetCurrentLevel() {
     Level* level = getCurrentLevel();
     ScoreManager::instance().setScore(level->getScoreBeforeLevel());
-    ScoreManager::instance().update();
     QList<QString> data = level->getData();
     Level* newLevel = new Level(data, this);
+    newLevel->load();
     levels.removeOne(level);
     delete level;
+    cheating = false;
     levels.insert(currentLevel, newLevel);
-    newLevel->load();
+    updateGUI = true;
 }
 
 GameModel::~GameModel() {
@@ -211,6 +250,10 @@ PlaceableBlock* GameModel::placeBlock(int x, int y) {
     return getCurrentLevel()->placeBlock(x, y);
 }
 
+Bullet* GameModel::fire(){
+    return getCurrentLevel()->fire();
+}
+
 void GameModel::playerInputP(int p){//Press Event Handler
     switch (p) {
     case Qt::Key_W:
@@ -229,6 +272,8 @@ void GameModel::playerInputP(int p){//Press Event Handler
         break;
     case Qt::Key_C:
         getCurrentLevel()->getPlayer()->setCheatJumpHeight();
+        cheating = !cheating;
+        break;
     default:
         break;
     }

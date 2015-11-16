@@ -11,8 +11,8 @@
 #include "scoremanager.h"
 #include "enemy.h"
 #include "sound.h"
+#include "bullet.h"
 #include <QDebug>
-#include "unistd.h"
 
 Level::Level(QList<QString> &initData, GameModel *initModel)
     : data(initData), model(initModel) {
@@ -24,7 +24,6 @@ Level::Level(QList<QString> &initData, GameModel *initModel)
     remotePlayer = nullptr;
     exit = nullptr;
     scoreBeforeLevel = 0;
-    vibrate = false;
     amplitudeH = amplitudeW = 0;
 }
 
@@ -38,6 +37,7 @@ Level::~Level() {
         delete entities[i];
     }
     delete exit;
+    delete player;
 }
 
 void Level::update() {
@@ -57,8 +57,8 @@ void Level::update() {
 
     //check vibrate
     if(getPlayer()->getVib()){
-        amplitudeH = rand() % 10 + (-5);
-        amplitudeW = rand() % 10 + (-5);
+        amplitudeH = rand() % 10 - 5;
+        amplitudeW = rand() % 10 - 5;
     }else{
         amplitudeH = amplitudeW = 0;
     }
@@ -78,6 +78,26 @@ bool Level::testCollision(int testX, int testY) {
     if(testY >= blocks.size()) return false;    //Make sure the y is inside the level
 
     return blocks[testY][testX] != nullptr;     //Return true if a block exists in that position
+}
+
+void Level::removeEnemyById(int id) {
+    for(int i = 0; i < entities.size(); i++) {
+        Enemy* enemy = dynamic_cast<Enemy*>(entities[i]);
+        if(enemy) {
+            if(enemy->getId() == id) {
+                enemy->setDead(true);
+                break;
+            }
+        }
+
+        FlyingEnemy* fly = dynamic_cast<FlyingEnemy*>(entities[i]);
+        if(fly) {
+            if(fly->getId() == id) {
+                fly->setDead(true);
+                break;
+            }
+        }
+    }
 }
 
 void Level::removeEntity(Entity *e) {
@@ -109,11 +129,25 @@ void Level::removeBlock(int x, int y) {
     blocks[y][x] = nullptr;
 }
 
+Bullet* Level::fire(){
+    int x = player->getX();
+    int y = player->getY();
+
+    if(x <= 0 || y <= 0) return nullptr;
+
+    Bullet* b = new Bullet(this, x, y);
+    b->setDir(player->getDir());
+
+    entities << b;
+    return b;
+}
+
 void Level::load() {
     scoreBeforeLevel = ScoreManager::instance().getCurScore();
     name = data[0].mid(6);
     numBlocks = data[1].mid(7).toInt();
     pointPlus = data[2].mid(7).toInt();
+    int id = 0;
 
     for(int y = 3; y < data.size(); y++) {
         QList<Block*> list;							//The blocks in the current row
@@ -123,7 +157,6 @@ void Level::load() {
                 list << new Block(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
             } else if(type == 'p') {				//If the character represents the player
                 list << nullptr;
-                delete player;
                 player = new Player(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
             } else if(type == 'x') {
                 list << nullptr;					//If the character is an exit
@@ -138,7 +171,13 @@ void Level::load() {
             } else if(type == 'e') {
                 list << nullptr;
                 Enemy* e = new Enemy(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
+                e->setId(id++);
                 entities << e;
+            } else if(type == 'f') {
+                list << nullptr;
+                FlyingEnemy* f = new FlyingEnemy(this, x * Entity::SIZE, (y - 3) * Entity::SIZE);
+                f->setId(id++);
+                entities << f;
             } else if(type == ' ') {				//If it is an empty space
                 list << nullptr;
             }
@@ -146,6 +185,7 @@ void Level::load() {
         blocks << list;								//Store the current row of blocks into the block list
     }
 }
+
 
 PlaceableBlock* Level::placeBlock(int x, int y) {
     PlaceableBlock* block = new PlaceableBlock(this, x * Entity::SIZE, y * Entity::SIZE);
@@ -197,7 +237,7 @@ PlaceableBlock* Level::placeBlock(){
                 return nullptr;
             }
         }
-    } 
+    }
     return nullptr;
 }
 
@@ -209,8 +249,8 @@ PlaceableBlock* Level::removeBlockX(){
     } else if(player->getDir() == 1){
         x = player->getX() + Entity::SIZE * 2 - 2;
         y = player->getY();
-     }
- 
+    }
+
     if(x < 0 || y < 0) return nullptr;
 
     x /= Entity::SIZE;					 //Make the x position the array x position
@@ -227,9 +267,9 @@ PlaceableBlock* Level::removeBlockX(){
             test->setDeleting(true);
             numBlocks++;
         }
-     }
-     return nullptr;
- }
+    }
+    return nullptr;
+}
 
 void Level::save(QTextStream &out) {
     out << "Score " << ScoreManager::instance().getCurScore() << "\n";

@@ -10,13 +10,14 @@
 #include <QTimer>
 #include <QPixmap>
 #include <QWidget>
-#include <QMutex> //For loading level
 #include <QTcpSocket>
 
 #include "gamemodel.h"
 #include "remoteplayer.h"
 #include "entity.h"
 #include "menu.h"
+#include "scoremanager.h"
+#include "scoredisplay.h"
 
 namespace Ui
 {
@@ -27,8 +28,9 @@ class GameWindow : public QMainWindow
 {
     Q_OBJECT
 
-    GameModel model;        //For the GUI/model interactions
-    Menu* menu;             //The Game menu
+    GameModel model;          //For the GUI/model interactions
+    Menu* menu;               //The Game menu
+    ScoreDisplay* display;
     RemotePlayer* otherPlayer;
     bool multiPlayer;
 
@@ -38,6 +40,10 @@ class GameWindow : public QMainWindow
     QPixmap exitImg;
 	QPixmap placeableImg;
     QPixmap heartImg;
+    QPixmap bulletImg;
+    QPixmap bulletImgR;
+    QPixmap cBulletImg;
+    QPixmap cBulletImgR;
 
     int fps;                //The frames per second the game will run at
 
@@ -54,8 +60,6 @@ public:
 	//evel 1 to level 2
     void updateGUI();
 
-    void shoot();
-
 	//Performs unit tests to make sure the game is working,
 	//and exits the program if any of them fail.
     void unitTests();
@@ -67,11 +71,17 @@ public:
     //Save the state of the game for loading next time
     void save();
 
+    //Make sure the check is true. If not, terminate program.
+    void check(bool val);
+
     static int WIDTH;       //The width of the window
     static int HEIGHT;      //The height of the window
 
 private:
     Ui::GameWindow *ui;
+
+signals:
+    void scores();
 
 private slots:
     void timerHit();        //When the timer goes off for the next frame update
@@ -80,6 +90,8 @@ private slots:
     void start(QString server);
     void load();
     void exit();
+    void endGame(bool done, bool server);
+    void highScores();
 
     void closeEvent(QCloseEvent *e);
     void keyPressEvent(QKeyEvent *k);
